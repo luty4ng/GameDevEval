@@ -1,0 +1,22 @@
+Luna GPU Terrain MCP verification record
+Date: 2026-09-12
+Unity: 6000.5.5f1
+Scene: Assets/Luna/Luna.unity
+
+Final refresh: success, compile requested, resulting state idle.
+Final read_console(types=[error, warning]): Retrieved 0 log entries.
+Validated scripts:
+- Luna_GpuTerrainBootstrap.cs: errors 0 (one static-analysis null-check suggestion)
+- Luna_GpuTerrainController.cs: errors 0 (one static-analysis GC heuristic warning)
+- Luna_FirstPersonController.cs: errors 0, warnings 0
+
+Runtime observations:
+- Main Camera acquired Luna_FirstPersonController and Luna_GpuTerrain_Runtime.
+- Runtime hierarchy contains six objects Luna_GpuTerrain_LOD0 through Luna_GpuTerrain_LOD5.
+- LOD5 Transform scale is (32, 1, 32); renderer bounds are 4096 x 4096m.
+- CPU FBM samples after seed precision fix: -13.5677, 13.78957, -31.41281, 16.7201 at test points.
+- Screenshots were captured through MCP into this Report folder.
+
+Profiler note:
+- MCP Memory snapshot reported GC Allocated In Frame = 746 bytes and GC Allocation In Frame Count = 9.
+- That counter includes this Editor/MCP-integrated sample and is not treated as proof of terrain-only zero allocation; self-assessment marks G partial.

@@ -1,0 +1,65 @@
+#pragma kernel CSGenerateHeight
+
+// The compute pass writes the same deterministic FBM field sampled by the terrain vertex stage.
+// Keeping this data GPU resident makes camera travel a texture refresh, not a CPU mesh rebuild.
+RWTexture2D<float> _HeightResult;
+
+int _HeightResolution;
+float2 _HeightWorldOrigin;
+float _HeightWorldSize;
+float _TerrainSeed;
+float _BaseFrequency;
+
+float Hash21(float2 p)
+{
+    p = frac(p * float2(123.34, 345.45));
+    p += dot(p, p + 34.345);
+    return frac(p.x * p.y);
+}
+
+float ValueNoise(float2 p, float seed)
+{
+    float seedOffset = frac(seed * 0.000001) * 100.0;
+    p += seedOffset;
+    float2 i = floor(p);
+    float2 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float a = Hash21(i);
+    float b = Hash21(i + float2(1.0, 0.0));
+    float c = Hash21(i + float2(0.0, 1.0));
+    float d = Hash21(i + float2(1.0, 1.0));
+    return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+}
+
+float FBM(float2 worldXZ)
+{
+    float sum = 0.0;
+    float amplitude = 0.5;
+    float frequency = _BaseFrequency;
+    float normalizer = 0.0;
+
+    [unroll]
+    for (int octave = 0; octave < 6; octave++)
+    {
+        sum += ValueNoise(worldXZ * frequency, _TerrainSeed + octave * 19.19) * amplitude;
+        normalizer += amplitude;
+        frequency *= 2.02;
+        amplitude *= 0.5;
+    }
+
+    return sum / normalizer;
+}
+
+[numthreads(8, 8, 1)]
+void CSGenerateHeight(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_HeightResolution || id.y >= (uint)_HeightResolution)
+    {
+        return;
+    }
+
+    float2 uv = (float2(id.xy) + 0.5) / _HeightResolution;
+    float2 worldXZ = _HeightWorldOrigin + uv * _HeightWorldSize;
+    _HeightResult[id.xy] = FBM(worldXZ);
+}
