@@ -1,0 +1,71 @@
+#pragma kernel GenerateHeight
+
+RWStructuredBuffer<float> _Sol_HeightBuffer;
+
+int _Sol_Resolution;
+int _Sol_BaseOffset;
+int _Sol_Seed;
+float _Sol_Frequency;
+float _Sol_Amplitude;
+float2 _Sol_LevelOrigin;
+float _Sol_CellSize;
+
+uint Sol_Hash(int2 lattice, int seed)
+{
+    uint hash = (uint)lattice.x * 374761393u + (uint)lattice.y * 668265263u + (uint)seed * 2246822519u;
+    hash = (hash ^ (hash >> 13u)) * 1274126177u;
+    return hash ^ (hash >> 16u);
+}
+
+float Sol_Hash01(int2 lattice, int seed)
+{
+    return (Sol_Hash(lattice, seed) & 0x00FFFFFFu) / 16777215.0;
+}
+
+float Sol_ValueNoise(float2 position, int seed)
+{
+    int2 lattice = (int2)floor(position);
+    float2 fraction = position - lattice;
+    float2 smoothFraction = fraction * fraction * (3.0 - 2.0 * fraction);
+
+    float a = Sol_Hash01(lattice, seed);
+    float b = Sol_Hash01(lattice + int2(1, 0), seed);
+    float c = Sol_Hash01(lattice + int2(0, 1), seed);
+    float d = Sol_Hash01(lattice + int2(1, 1), seed);
+    return lerp(lerp(a, b, smoothFraction.x), lerp(c, d, smoothFraction.x), smoothFraction.y);
+}
+
+float Sol_FbmHeight(float2 worldPosition)
+{
+    float2 position = worldPosition * _Sol_Frequency;
+    float octaveAmplitude = 1.0;
+    float octaveFrequency = 1.0;
+    float sum = 0.0;
+    float weight = 0.0;
+
+    [unroll]
+    for (int octave = 0; octave < 6; octave++)
+    {
+        sum += Sol_ValueNoise(position * octaveFrequency, _Sol_Seed + octave * 1013) * octaveAmplitude;
+        weight += octaveAmplitude;
+        octaveAmplitude *= 0.5;
+        octaveFrequency *= 2.0;
+    }
+
+    float signedFbm = sum / weight * 2.0 - 1.0;
+    float shaped = signedFbm + signedFbm * abs(signedFbm) * 0.35;
+    return shaped * _Sol_Amplitude;
+}
+
+[numthreads(8, 8, 1)]
+void GenerateHeight(uint3 dispatchId : SV_DispatchThreadID)
+{
+    if (dispatchId.x >= (uint)_Sol_Resolution || dispatchId.y >= (uint)_Sol_Resolution)
+    {
+        return;
+    }
+
+    float2 worldPosition = _Sol_LevelOrigin + float2(dispatchId.x, dispatchId.y) * _Sol_CellSize;
+    uint index = (uint)_Sol_BaseOffset + dispatchId.y * (uint)_Sol_Resolution + dispatchId.x;
+    _Sol_HeightBuffer[index] = Sol_FbmHeight(worldPosition);
+}
