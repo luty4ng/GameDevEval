@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { Preferences } from './preferences';
-import type { User } from './CloudApp';
+import type { User, Invite } from '../shared/contracts';
 
-type Invite = { id: string; email: string; expires_at: string; redeemed_at: string | null; revoked_at: string | null };
 export function AccountPanel({ user, preferences, onClose, onSave }: { user: User; preferences: Preferences; onClose: () => void; onSave: (name: string, preferences: Preferences) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState(user.name);

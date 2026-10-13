@@ -1,0 +1,1457 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GameEval Studio API",
+    "version": "1.2.0"
+  },
+  "components": {
+    "schemas": {
+      "Registration": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "password": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "token",
+          "email",
+          "name",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "ProfileUpdate": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "preferences": {
+            "type": "object",
+            "properties": {
+              "engine": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "engineVersion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "platform": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": [
+                  "基础",
+                  "进阶",
+                  "专家"
+                ]
+              },
+              "timeBudget": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10080
+              },
+              "passThreshold": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "engine",
+              "engineVersion",
+              "platform",
+              "difficulty",
+              "timeBudget",
+              "passThreshold"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "preferences"
+        ],
+        "additionalProperties": false
+      },
+      "WorkspaceUpdate": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "$ref": "#/components/schemas/Workspace"
+          }
+        },
+        "required": [
+          "revision",
+          "data"
+        ],
+        "additionalProperties": false
+      },
+      "InviteCreate": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false
+      },
+      "UserStatus": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "disabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "disabled"
+        ],
+        "additionalProperties": false
+      },
+      "Workspace": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "projects": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "createdAt": {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "maxLength": 16000
+                },
+                "task": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "title": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "brief": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "domain": {
+                      "type": "string",
+                      "enum": [
+                        "玩法逻辑",
+                        "图形与地形",
+                        "战斗与 AI",
+                        "游戏 UI",
+                        "性能优化",
+                        "完整小游戏"
+                      ]
+                    },
+                    "difficulty": {
+                      "type": "string",
+                      "enum": [
+                        "基础",
+                        "进阶",
+                        "专家"
+                      ]
+                    },
+                    "engine": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "engineVersion": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "platform": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "baseline": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "scene": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "seed": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "timeBudget": {
+                      "type": "number"
+                    },
+                    "hardware": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "protocol": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "constraints": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "deliverables": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "passThreshold": {
+                      "type": "number"
+                    },
+                    "requirements": {
+                      "maxItems": 200,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "title": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "domain": {
+                            "type": "string",
+                            "enum": [
+                              "玩法逻辑",
+                              "图形与地形",
+                              "战斗与 AI",
+                              "游戏 UI",
+                              "性能优化",
+                              "完整小游戏"
+                            ]
+                          },
+                          "priority": {
+                            "type": "string",
+                            "enum": [
+                              "P0",
+                              "P1",
+                              "P2"
+                            ]
+                          },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "steps": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "acceptance": {
+                            "type": "string",
+                            "maxLength": 16000
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "domain",
+                          "priority",
+                          "description",
+                          "steps",
+                          "acceptance"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "rules": {
+                      "maxItems": 300,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "title": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "requirementIds": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            }
+                          },
+                          "dimension": {
+                            "type": "string",
+                            "enum": [
+                              "可运行性",
+                              "功能正确性",
+                              "视觉表现",
+                              "交互体验",
+                              "稳定性",
+                              "性能",
+                              "工程质量"
+                            ]
+                          },
+                          "method": {
+                            "type": "string",
+                            "enum": [
+                              "静态检查",
+                              "自动化运行",
+                              "性能采样",
+                              "视觉检查",
+                              "专家试玩"
+                            ]
+                          },
+                          "weight": {
+                            "type": "number"
+                          },
+                          "gate": {
+                            "type": "boolean"
+                          },
+                          "visibility": {
+                            "type": "string",
+                            "enum": [
+                              "private",
+                              "public"
+                            ]
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "anchors": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "string",
+                                "maxLength": 16000
+                              },
+                              {
+                                "type": "string",
+                                "maxLength": 16000
+                              },
+                              {
+                                "type": "string",
+                                "maxLength": 16000
+                              },
+                              {
+                                "type": "string",
+                                "maxLength": 16000
+                              },
+                              {
+                                "type": "string",
+                                "maxLength": 16000
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 5,
+                            "maxItems": 5
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "requirementIds",
+                          "dimension",
+                          "method",
+                          "weight",
+                          "gate",
+                          "visibility",
+                          "evidence",
+                          "anchors"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title",
+                    "brief",
+                    "domain",
+                    "difficulty",
+                    "engine",
+                    "engineVersion",
+                    "platform",
+                    "baseline",
+                    "scene",
+                    "seed",
+                    "timeBudget",
+                    "hardware",
+                    "protocol",
+                    "constraints",
+                    "deliverables",
+                    "passThreshold",
+                    "requirements",
+                    "rules"
+                  ],
+                  "additionalProperties": false
+                },
+                "review": {
+                  "type": "object",
+                  "properties": {
+                    "reviewer": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "submission": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "notes": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "marks": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 4
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "maxLength": 16000
+                          }
+                        },
+                        "required": [
+                          "score",
+                          "evidence"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "reviewer",
+                    "submission",
+                    "notes",
+                    "marks"
+                  ],
+                  "additionalProperties": false
+                },
+                "versions": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "number": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "maxLength": 16000
+                      },
+                      "reviewer": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16000
+                      },
+                      "note": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16000
+                      },
+                      "task": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "title": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "brief": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "domain": {
+                            "type": "string",
+                            "enum": [
+                              "玩法逻辑",
+                              "图形与地形",
+                              "战斗与 AI",
+                              "游戏 UI",
+                              "性能优化",
+                              "完整小游戏"
+                            ]
+                          },
+                          "difficulty": {
+                            "type": "string",
+                            "enum": [
+                              "基础",
+                              "进阶",
+                              "专家"
+                            ]
+                          },
+                          "engine": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "engineVersion": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "platform": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "baseline": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "scene": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "seed": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "timeBudget": {
+                            "type": "number"
+                          },
+                          "hardware": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "protocol": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "constraints": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "deliverables": {
+                            "type": "string",
+                            "maxLength": 16000
+                          },
+                          "passThreshold": {
+                            "type": "number"
+                          },
+                          "requirements": {
+                            "maxItems": 200,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                },
+                                "domain": {
+                                  "type": "string",
+                                  "enum": [
+                                    "玩法逻辑",
+                                    "图形与地形",
+                                    "战斗与 AI",
+                                    "游戏 UI",
+                                    "性能优化",
+                                    "完整小游戏"
+                                  ]
+                                },
+                                "priority": {
+                                  "type": "string",
+                                  "enum": [
+                                    "P0",
+                                    "P1",
+                                    "P2"
+                                  ]
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                },
+                                "steps": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                },
+                                "acceptance": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "title",
+                                "domain",
+                                "priority",
+                                "description",
+                                "steps",
+                                "acceptance"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "rules": {
+                            "maxItems": 300,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "title": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                },
+                                "requirementIds": {
+                                  "maxItems": 200,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  }
+                                },
+                                "dimension": {
+                                  "type": "string",
+                                  "enum": [
+                                    "可运行性",
+                                    "功能正确性",
+                                    "视觉表现",
+                                    "交互体验",
+                                    "稳定性",
+                                    "性能",
+                                    "工程质量"
+                                  ]
+                                },
+                                "method": {
+                                  "type": "string",
+                                  "enum": [
+                                    "静态检查",
+                                    "自动化运行",
+                                    "性能采样",
+                                    "视觉检查",
+                                    "专家试玩"
+                                  ]
+                                },
+                                "weight": {
+                                  "type": "number"
+                                },
+                                "gate": {
+                                  "type": "boolean"
+                                },
+                                "visibility": {
+                                  "type": "string",
+                                  "enum": [
+                                    "private",
+                                    "public"
+                                  ]
+                                },
+                                "evidence": {
+                                  "type": "string",
+                                  "maxLength": 16000
+                                },
+                                "anchors": {
+                                  "type": "array",
+                                  "prefixItems": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 16000
+                                    },
+                                    {
+                                      "type": "string",
+                                      "maxLength": 16000
+                                    },
+                                    {
+                                      "type": "string",
+                                      "maxLength": 16000
+                                    },
+                                    {
+                                      "type": "string",
+                                      "maxLength": 16000
+                                    },
+                                    {
+                                      "type": "string",
+                                      "maxLength": 16000
+                                    }
+                                  ],
+                                  "items": false,
+                                  "minItems": 5,
+                                  "maxItems": 5
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "title",
+                                "requirementIds",
+                                "dimension",
+                                "method",
+                                "weight",
+                                "gate",
+                                "visibility",
+                                "evidence",
+                                "anchors"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "brief",
+                          "domain",
+                          "difficulty",
+                          "engine",
+                          "engineVersion",
+                          "platform",
+                          "baseline",
+                          "scene",
+                          "seed",
+                          "timeBudget",
+                          "hardware",
+                          "protocol",
+                          "constraints",
+                          "deliverables",
+                          "passThreshold",
+                          "requirements",
+                          "rules"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "number",
+                      "createdAt",
+                      "reviewer",
+                      "note",
+                      "task"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "createdAt",
+                "updatedAt",
+                "task",
+                "review",
+                "versions"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "projects"
+        ],
+        "additionalProperties": false
+      },
+      "Preferences": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "engineVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "基础",
+              "进阶",
+              "专家"
+            ]
+          },
+          "timeBudget": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10080
+          },
+          "passThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "engine",
+          "engineVersion",
+          "platform",
+          "difficulty",
+          "timeBudget",
+          "passThreshold"
+        ],
+        "additionalProperties": false
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "disabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "required": [
+          "user",
+          "preferences"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/Preferences"
+          }
+        }
+      },
+      "WorkspaceSnapshot": {
+        "type": "object",
+        "required": [
+          "revision",
+          "data"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "data": {
+            "$ref": "#/components/schemas/Workspace"
+          }
+        }
+      },
+      "Login": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "ChangePassword": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 128
+          },
+          "revokeOtherSessions": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Opaque HttpOnly session; Secure cookie name is provider-dependent. Do not store it in browser localStorage."
+      }
+    }
+  },
+  "paths": {
+    "/api/register": {
+      "post": {
+        "summary": "Redeem one email-bound invitation",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Registration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "summary": "Current user and preferences",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/preferences": {
+      "put": {
+        "summary": "Save name and evaluation defaults",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/workspace": {
+      "get": {
+        "summary": "Read own {revision,data}",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      },
+      "put": {
+        "summary": "Atomically save own workspace; returns {revision}",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "summary": "List users; administrator required",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "summary": "Set member disabled status and revoke sessions",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserStatus"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/admin/invites": {
+      "get": {
+        "summary": "List invite metadata without tokens",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create 7-day invitation; returns {id,url}",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/admin/invites/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "summary": "Revoke an unredeemed invitation",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/get-session": {
+      "get": {
+        "summary": "Session or null",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/sign-in/email": {
+      "post": {
+        "summary": "Email/password login with HttpOnly Cookie",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/sign-out": {
+      "post": {
+        "summary": "Logout and clear session Cookie",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "summary": "Change password; supports revokeOtherSessions",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePassword"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; see documented response contracts"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Permission or Origin rejected"
+          },
+          "409": {
+            "description": "Revision conflict or account already exists"
+          }
+        }
+      }
+    }
+  }
+}

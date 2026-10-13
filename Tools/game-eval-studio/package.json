@@ -1,6 +1,6 @@
 {
   "name": "game-eval-studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,8 @@
     "db:migrate": "tsx server/manage.ts migrate",
     "admin:init": "tsx server/manage.ts admin",
     "test:server": "vitest run tests/server.test.ts",
-    "password:reset": "tsx server/manage.ts reset-password"
+    "password:reset": "tsx server/manage.ts reset-password",
+    "schema:api": "tsx scripts/api-schema.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "11.2.1",

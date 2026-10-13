@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import App from './App';
 import { api } from './api';
-import { defaultPreferences, type Preferences } from './preferences';
+import { defaultPreferences } from './preferences';
 import type { Workspace } from './model';
 import { AccountPanel } from './account';
+import type { User, Profile } from '../shared/contracts';
 
-export type User = { id: string; name: string; email: string; role: string; disabled: boolean };
-type Profile = { user: User; preferences: Preferences };
+export type { User } from '../shared/contracts';
 export default function CloudApp() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);

@@ -1,6 +1,6 @@
 # 账户版设计与容器部署指南
 
-版本：1.1 · 2026-10-13。代码与本地 PostgreSQL/浏览器验证已完成；**尚未部署到 luty-server，Docker 镜像构建和线上 HTTPS 未实测**。
+版本：1.2 · 2026-10-13。代码与本地 PostgreSQL/浏览器验证已完成；**部署进行中，服务器验收记录见 DEPLOYMENT-REPORT.md；公网 HTTPS 需确认域名后启用**。
 
 ## 技术选择
 
@@ -39,7 +39,7 @@ flowchart LR
 
 注册流程：管理员创建邀请 → 自行通过可信渠道交付链接 → 专家填写同一邮箱、显示名称和至少 15 字符密码 → 注册 → 登录 → 加载自己的题库与偏好。邀请码不提供公开注册通道，角色不能从注册表单设置。
 
-会话 Cookie 为 HttpOnly、SameSite=Lax，生产环境强制 HTTPS/Secure；API 写请求必须带匹配 `APP_URL` 的 Origin。响应不缓存私有数据。生产部署只信任一个代理跳数，认证限流 IP 由 API 覆盖为该解析结果，外部无法通过自带身份头提升权限。App 应只暴露给 Traefik 与 loopback，不能把 3000 发布到公网。
+会话 Cookie 为 HttpOnly、SameSite=Lax，公网生产模式强制 HTTPS/Secure；API 写请求必须带匹配 `APP_URL` 的 Origin。响应不缓存私有数据。公网生产部署只信任一个代理跳数，认证限流 IP 由 API 覆盖为该解析结果，外部无法通过自带身份头提升权限。App 应只暴露给 Traefik 与 loopback，不能把 3000 发布到公网。
 
 登录每 IP 每分钟最多 10 次，公开注册每 IP 每分钟最多 5 次；认证限流写数据库。通用 HTTP 限流在单 App 进程内，当前 Compose 仅运行单实例。未接 SMTP、邮箱验证、MFA、团队共享、附件上传、模型 API key 或运行器。邀请者负责核实邮箱；忘记密码由具备服务器运维权限的人员线下重置。
 
@@ -117,3 +117,11 @@ python3 scripts/account-input.py reset-password | docker compose run --rm -T app
 账户浏览器测试：先 `npm run build:server`，一个终端运行 `node --import tsx tests/browser-server.ts`，另一个终端 `python tests/accounts_e2e.py`。前者创建独立临时 PostgreSQL 和假账户，结束时 Ctrl+C 停止；勿用于生产。依赖见 `tests/requirements.txt`。
 
 部署时还需完成 Docker build、Compose health、TLS/Cookie、备份恢复与服务器重启持久化验收。当前没有验证生产负载或长时间断电耐久性。
+
+## 无域名时的 SSH 部署模式
+
+可设置 `ACCESS_MODE=ssh`、`APP_URL=http://127.0.0.1:3000`，只使用 `compose.yaml`，不加载 Traefik 覆盖文件。容器仍使用生产运行环境、普通数据库角色和私有网络；宿主机只绑定 127.0.0.1:3000。应用仅允许 loopback origin，Cookie 保留 HttpOnly/SameSite，SSH 连接承担网络加密，不能把此模式用于公网 HTTP。
+
+本机执行 `ssh -N -L 3000:127.0.0.1:3000 luty-server`，再打开 `http://127.0.0.1:3000`。客户端端口必须为 3000，与 APP_URL 一致。确定域名后，切换 `ACCESS_MODE=public`、HTTPS APP_URL/APP_HOST，并加载 Traefik 覆盖文件重建本应用容器；保持 DB_PASSWORD、AUTH_SECRET 和持久卷，重新登录新 origin。
+
+依赖分层、调用链和技术替换步骤见 [架构文档](ARCHITECTURE.md)，稳定协议见 [OpenAPI](API.openapi.json)。生成协议命令为 `npm run schema:api`。

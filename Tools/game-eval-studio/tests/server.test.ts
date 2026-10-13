@@ -35,7 +35,7 @@ const login = (email: string, value = password) => request('POST', '/api/auth/si
 beforeAll(async () => {
   await db.initialise(); await db.start();
   pool = new Pool({ connectionString: 'postgres://postgres:local-test-only@127.0.0.1:55437/postgres', max: 10 });
-  runtime = await createApp(pool, { DATABASE_URL: '', AUTH_SECRET: 'integration-test-secret-at-least-32-chars', APP_URL: origin, NODE_ENV: 'test', PORT: 3000 });
+  runtime = await createApp(pool, { DATABASE_URL: '', AUTH_SECRET: 'integration-test-secret-at-least-32-chars', APP_URL: origin, NODE_ENV: 'test', ACCESS_MODE: 'public', PORT: 3000 });
   await migrate(pool, runtime.auth);
   await migrate(pool, runtime.auth); // migrations are repeatable
   const admin = await runtime.auth.api.signUpEmail({ body: { email: 'admin@example.test', name: '管理员', password } });
@@ -139,7 +139,7 @@ describe('PostgreSQL account and workspace integration', () => {
     expect((await request('GET', '/api/workspace', undefined, memberCookie)).statusCode).toBe(401);
   });
   it('uses Secure production cookies and rate-limits login using the actual peer IP', async () => {
-    const secure = await createApp(pool, { DATABASE_URL: '', AUTH_SECRET: 'production-test-secret-at-least-32-chars', APP_URL: 'https://gameeval.example.test', NODE_ENV: 'production', PORT: 3000 });
+    const secure = await createApp(pool, { DATABASE_URL: '', AUTH_SECRET: 'production-test-secret-at-least-32-chars', APP_URL: 'https://gameeval.example.test', NODE_ENV: 'production', ACCESS_MODE: 'public', PORT: 3000 });
     try {
       const result = await secure.app.inject({ method: 'POST', url: '/api/auth/sign-in/email', headers: { origin: 'https://gameeval.example.test' }, payload: { email: 'admin@example.test', password } });
       expect(result.statusCode).toBe(200);
@@ -168,5 +168,16 @@ describe('PostgreSQL account and workspace integration', () => {
     const secondAdmin = await run('admin', { email: 'second-admin@example.test', name: '管理员 2', password });
     expect(secondAdmin.code).toBe(1);
     expect((await pool.query('SELECT id FROM "user" WHERE email=$1', ['second-admin@example.test'])).rowCount).toBe(0);
+  });
+  it('supports production SSH access with HttpOnly cookies and exact loopback Origin checks', async () => {
+    const ssh = await createApp(pool, { DATABASE_URL: '', AUTH_SECRET: 'ssh-test-secret-at-least-32-characters', APP_URL: 'http://127.0.0.1:3000', NODE_ENV: 'production', ACCESS_MODE: 'ssh', PORT: 3000 });
+    try {
+      const result = await ssh.app.inject({ method: 'POST', url: '/api/auth/sign-in/email', headers: { origin: 'http://127.0.0.1:3000' }, payload: { email: 'admin@example.test', password } });
+      expect(result.statusCode).toBe(200);
+      expect(String(result.headers['set-cookie'])).toContain('HttpOnly');
+      expect(String(result.headers['set-cookie'])).not.toContain('; Secure');
+      const foreign = await ssh.app.inject({ method: 'POST', url: '/api/auth/sign-in/email', headers: { origin: 'http://example.test' }, payload: { email: 'admin@example.test', password } });
+      expect(foreign.statusCode).toBe(403);
+    } finally { await ssh.app.close(); }
   });
 });

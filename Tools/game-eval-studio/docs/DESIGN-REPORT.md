@@ -1,6 +1,10 @@
 # GameEval Studio 设计与实施报告
 
-日期：2026-10-13 · 版本：1.1
+日期：2026-10-13 · 版本：1.2
+
+## 1.2 解耦与部署补充
+
+业务策略移入 application，HTTP、SQL/事务和认证库分别放入 transport/infrastructure。前后端领域实现集中到 shared，协议独立输出为 OpenAPI。两个不依赖 Fastify/pg/Better Auth 的内存适配器业务测试验证替换边界；真实 PostgreSQL 和浏览器测试继续约束兼容性。详见 [架构说明](ARCHITECTURE.md)。服务器部署以独立容器、普通 DB 角色和持久卷实现，验收证据随部署记录更新。
 
 ## 1.1 账户版实施补充
 

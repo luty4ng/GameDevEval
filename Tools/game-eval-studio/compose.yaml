@@ -20,11 +20,14 @@ services:
       timeout: 3s
       retries: 20
   app:
-    build: .
-    image: gameeval-studio:1.1.0
+    build:
+      context: .
+      args: { APP_REVISION: '${APP_REVISION:-unknown}' }
+    image: gameeval-studio:1.2.0
     environment:
       NODE_ENV: production
       APP_URL: ${APP_URL:?Set public HTTPS origin}
+      ACCESS_MODE: ${ACCESS_MODE:-public}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET}
       DATABASE_URL: postgres://gameeval:${DB_PASSWORD:?Set DB_PASSWORD}@db:5432/gameeval
       PORT: 3000
