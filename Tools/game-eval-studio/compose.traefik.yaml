@@ -1,0 +1,16 @@
+services:
+  app:
+    networks: [backend, edge]
+    labels:
+      traefik.enable: 'true'
+      traefik.docker.network: traefik-net
+      traefik.http.routers.gameeval.rule: Host(`${APP_HOST:?Set APP_HOST}`)
+      traefik.http.routers.gameeval.entrypoints: ${TRAEFIK_HTTPS_ENTRYPOINT:-websecure}
+      traefik.http.routers.gameeval.tls: 'true'
+      # Match the certificate resolver configured on the existing Traefik instance.
+      traefik.http.routers.gameeval.tls.certresolver: ${TRAEFIK_CERT_RESOLVER:?Set existing certificate resolver}
+      traefik.http.services.gameeval.loadbalancer.server.port: '3000'
+networks:
+  edge:
+    external: true
+    name: traefik-net

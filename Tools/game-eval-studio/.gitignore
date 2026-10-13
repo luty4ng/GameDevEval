@@ -2,3 +2,7 @@ node_modules/
 dist/
 test-results/
 *.local
+.env
+.env.*
+!.env.example
+!.env.server

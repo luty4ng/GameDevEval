@@ -5,6 +5,14 @@ import { diffTasks, editTask, freezeVersion, importProjects, reviewSummary, vali
 import { createProject, templateDescriptions } from './templates';
 import { buildPackage, download, safeName, taskMarkdown } from './export';
 import { loadView, loadWorkspace, saveView, STORAGE_KEY } from './storage';
+import type { Preferences } from './preferences';
+export type RemoteWorkspace = {
+  initial: Workspace;
+  save: (workspace: Workspace) => Promise<void>;
+  reload: () => Promise<Workspace>;
+  preferences: Preferences;
+  toolbar: ReactNode;
+};
 
 const tabs: { id: Tab; label: string; icon: typeof FileText }[] = [
   { id: 'setup', label: '任务设定', icon: SlidersHorizontal },
@@ -29,13 +37,13 @@ function Modal({ title, children, onClose, wide = false }: { title: string; chil
     <div className="modal-header"><h2>{title}</h2><button className="icon-button" aria-label="关闭对话框" onClick={onClose}><X size={20} /></button></div>{children}
   </dialog>;
 }
-function NewTask({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
+function NewTask({ onClose, onCreate, preferences }: { onClose: () => void; onCreate: (p: Project) => void; preferences?: Preferences }) {
   const [domain, setDomain] = useState<Task['domain']>('玩法逻辑');
   const [title, setTitle] = useState('');
   const [brief, setBrief] = useState('');
-  const [difficulty, setDifficulty] = useState<Task['difficulty']>('进阶');
+  const [difficulty, setDifficulty] = useState<Task['difficulty']>(preferences?.difficulty ?? '进阶');
   return <Modal title="新建评测任务" onClose={onClose} wide>
-    <form onSubmit={e => { e.preventDefault(); onCreate(createProject(domain, title, brief, difficulty)); }}>
+    <form onSubmit={e => { e.preventDefault(); const project = createProject(domain, title, brief, difficulty); if (preferences) project.task = { ...project.task, ...preferences, difficulty }; onCreate(project); }}>
       <p className="muted">选一个任务领域，起草相互关联的需求和规则。模板在本地生成，之后由专家逐条校准。</p>
       <div className="template-grid">{DOMAINS.map(d => <button type="button" className={`template-option ${d === domain ? 'selected' : ''}`} key={d} aria-pressed={d === domain} onClick={() => setDomain(d)}><span>{d}<Check size={16} /></span><small>{templateDescriptions[d]}</small></button>)}</div>
       <Field label="任务名称"><input required maxLength={150} placeholder="例如：带缓冲跳跃的 2D 角色控制器" value={title} onChange={e => setTitle(e.target.value)} /></Field>
@@ -46,8 +54,8 @@ function NewTask({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Pro
   </Modal>;
 }
 
-export default function App() {
-  const [initial] = useState(loadWorkspace);
+export default function App({ remote }: { remote?: RemoteWorkspace }) {
+  const [initial] = useState(() => remote ? { workspace: remote.initial, raw: JSON.stringify(remote.initial), error: null } : loadWorkspace());
   const [initialView] = useState(loadView);
   const [workspace, setWorkspace] = useState<Workspace>(initial.workspace);
   const [selected, setSelected] = useState(initial.workspace.projects.some(p => p.id === initialView.selected) ? initialView.selected : initial.workspace.projects[0]?.id ?? '');
@@ -65,6 +73,7 @@ export default function App() {
   const lastWritten = useRef<string | null>(initial.raw);
   const latestWorkspace = useRef(workspace);
   const savePaused = useRef(paused);
+  const saveQueue = useRef(Promise.resolve());
   latestWorkspace.current = workspace;
   savePaused.current = paused;
   const p = workspace.projects.find(p => p.id === selected) ?? workspace.projects[0];
@@ -76,6 +85,22 @@ export default function App() {
     if (paused) return;
     setSaving(true);
     const timer = setTimeout(() => {
+      if (remote) {
+        const raw = JSON.stringify(workspace);
+        if (raw === lastWritten.current) { setSaving(false); return; }
+        saveQueue.current = saveQueue.current.then(async () => {
+          if (savePaused.current) return;
+          try {
+            await remote.save(workspace);
+            lastWritten.current = raw;
+            setStorageError(null); setSavedAt(new Date().toISOString());
+          } catch (error) {
+            savePaused.current = true; setPaused(true);
+            setStorageError(error instanceof Error ? error.message : '服务端保存失败，请备份当前改动');
+          } finally { if (JSON.stringify(latestWorkspace.current) === raw || savePaused.current) setSaving(false); }
+        });
+        return;
+      }
       try {
         const existing = localStorage.getItem(STORAGE_KEY);
         if (existing !== lastWritten.current) {
@@ -91,6 +116,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [workspace, paused]);
   useEffect(() => {
+    if (remote) return;
     const handler = (e: StorageEvent) => {
       if ((e.key === STORAGE_KEY || e.key === null) && e.newValue !== lastWritten.current) {
         setPaused(true); setSaving(false); setStorageError('其他标签已修改或清空题库，自动保存暂停。请先备份当前改动，再载入最新数据。');
@@ -100,6 +126,13 @@ export default function App() {
     return () => window.removeEventListener('storage', handler);
   }, []);
   useEffect(() => {
+    if (remote) {
+      const warn = (event: BeforeUnloadEvent) => {
+        if (JSON.stringify(latestWorkspace.current) !== lastWritten.current) { event.preventDefault(); event.returnValue = ''; }
+      };
+      window.addEventListener('beforeunload', warn);
+      return () => window.removeEventListener('beforeunload', warn);
+    }
     const flush = () => {
       if (savePaused.current) return;
       try {
@@ -131,7 +164,16 @@ export default function App() {
     }, 50);
   };
   const backup = () => { download(JSON.stringify(workspace, null, 2), `game-eval-workspace-${new Date().toISOString().slice(0, 10)}.json`); setNotice('工作区备份已下载。'); };
-  const loadLatest = () => {
+  const loadLatest = async () => {
+    if (remote) {
+      try {
+        await saveQueue.current;
+        const loaded = await remote.reload();
+        setWorkspace(loaded); lastWritten.current = JSON.stringify(loaded);
+        setPaused(false); setStorageError(null); setNotice('已载入服务端最新题库。');
+      } catch (error) { setStorageError(error instanceof Error ? error.message : '读取失败'); }
+      return;
+    }
     const loaded = loadWorkspace();
     if (loaded.error) { setStorageError(loaded.error); return; }
     setWorkspace(loaded.workspace); setSelected(loaded.workspace.projects[0]?.id ?? '');
@@ -141,7 +183,15 @@ export default function App() {
     try { download(localStorage.getItem(STORAGE_KEY) ?? '', 'game-eval-raw-recovery.txt', 'text/plain'); }
     catch { setConfirm({ title: '读取原始存储失败', message: '浏览器禁止读取本地存储。仍可下载当前题库备份，再检查浏览器的存储设置。', action: () => {} }); }
   };
-  const resumeSaving = () => {
+  const resumeSaving = async () => {
+    if (remote) {
+      try {
+        await saveQueue.current;
+        await remote.reload();
+        setPaused(false); setStorageError(null);
+      } catch (error) { setStorageError(error instanceof Error ? error.message : '读取失败'); }
+      return;
+    }
     try { lastWritten.current = localStorage.getItem(STORAGE_KEY); setPaused(false); setStorageError(null); }
     catch { setStorageError('浏览器禁止读取本地存储，无法恢复自动保存。请先下载当前题库备份。'); }
   };
@@ -168,14 +218,14 @@ export default function App() {
       <nav className="project-list">{workspace.projects.filter(p => `${p.task.title} ${p.task.domain}`.toLowerCase().includes(search.toLowerCase())).map(project => <button key={project.id} onClick={() => { setSelected(project.id); setTab('requirements'); }} className={`project-link ${p?.id === project.id ? 'active' : ''}`} aria-current={p?.id === project.id ? 'page' : undefined}>
         <span className="project-icon"><Layers3 size={18} /></span><span><strong>{project.task.title || '未命名任务'}</strong><small>{project.task.domain} <span>{project.versions.length ? `v${project.versions.at(-1)!.number} + 草稿` : '草稿'}</span></small></span>
       </button>)}{!workspace.projects.filter(p => `${p.task.title} ${p.task.domain}`.toLowerCase().includes(search.toLowerCase())).length && <p className="sidebar-empty">{workspace.projects.length ? '没有匹配的任务' : '从模板创建第一道评测题'}</p>}</nav>
-      <div className="sidebar-bottom"><div className="local-notice"><span className="local-dot" /><strong>本地工作区</strong><p>数据保存在当前浏览器。定期下载备份，跨设备时再导入。</p></div><div className="sidebar-tools"><button onClick={backup}><Download size={16} />备份</button><button onClick={() => importInput.current?.click()}><Upload size={16} />导入</button></div><button className="help-link" onClick={() => setShowHelp(true)}><CircleHelp size={17} />操作与评测说明</button><div className="sidebar-version">GameEval Studio <span>1.0</span></div></div>
+      <div className="sidebar-bottom"><div className="local-notice"><span className="local-dot" /><strong>{remote ? '账户工作区' : '本地工作区'}</strong><p>{remote ? '题库保存在服务器，按账户隔离。旧版数据可用 JSON 备份手动导入。' : '数据保存在当前浏览器。定期下载备份，跨设备时再导入。'}</p></div><div className="sidebar-tools"><button onClick={backup}><Download size={16} />备份</button><button onClick={() => importInput.current?.click()}><Upload size={16} />导入</button></div><button className="help-link" onClick={() => setShowHelp(true)}><CircleHelp size={17} />操作与评测说明</button><div className="sidebar-version">GameEval Studio <span>1.1</span></div></div>
       <input type="file" hidden ref={importInput} accept="application/json,.json" aria-label="导入工作区备份" onChange={e => void readImport(e.target.files?.[0])} />
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="breadcrumb"><BookOpen size={17} /><span>评测题库</span><ChevronRight size={14} /><span>{task?.domain ?? '工作区'}</span></div><div className={`save-state ${storageError ? 'error-text' : ''}`} aria-live="polite">{storageError ? <AlertCircle size={15} /> : saving ? <Save size={15} /> : <CheckCircle2 size={15} />}<span>{storageError ? '保存需要处理' : saving ? '正在保存…' : savedAt ? '已自动保存' : '准备保存'}</span></div></header>
-      {storageError && <div className="storage-banner" role="alert"><AlertCircle size={18} /><div><strong>{storageError}</strong><div className="inline-actions"><button onClick={backup}>备份当前题库</button><button onClick={downloadRaw}>下载原始存储</button>{paused && <><button onClick={loadLatest}>载入最新数据</button><button onClick={() => setConfirm({ title: '继续保存当前题库', message: '当前题库会替换浏览器中的题库。请确认已下载需要保留的原始数据和当前备份。', action: resumeSaving })}>用当前题库继续保存</button></>}</div></div></div>}
+      <header className="topbar"><div className="breadcrumb"><BookOpen size={17} /><span>评测题库</span><ChevronRight size={14} /><span>{task?.domain ?? '工作区'}</span></div><div className={`save-state ${storageError ? 'error-text' : ''}`} aria-live="polite">{storageError ? <AlertCircle size={15} /> : saving ? <Save size={15} /> : <CheckCircle2 size={15} />}<span>{storageError ? '保存需要处理' : saving ? '正在保存…' : savedAt ? '已自动保存' : remote ? '服务端已同步' : '准备保存'}</span></div>{remote?.toolbar}</header>
+      {storageError && <div className="storage-banner" role="alert"><AlertCircle size={18} /><div><strong>{storageError}</strong><div className="inline-actions"><button onClick={backup}>备份当前题库</button>{!remote && <button onClick={downloadRaw}>下载原始存储</button>}{paused && <><button onClick={loadLatest}>载入最新数据</button><button onClick={() => setConfirm({ title: '继续保存当前题库', message: remote ? '当前题库将替换此账户的服务端题库。请先备份需要保留的内容；冻结版本不能改写。' : '当前题库会替换浏览器中的题库。请确认已下载需要保留的原始数据和当前备份。', action: resumeSaving })}>用当前题库继续保存</button></>}</div></div></div>}
       {p && task ? <>
-        <div className="task-header"><div><div className="title-meta"><span className="badge draft">编辑草稿</span><span>{task.difficulty}</span><span>{task.engine}</span></div><h1>{task.title || '未命名任务'}</h1><p>{task.brief}</p></div><div className="header-actions"><button className="icon-button" title="复制任务" aria-label="复制任务" onClick={() => { const id = uid(); addProject({ ...structuredClone(p), id, task: { ...structuredClone(task), id, title: `${task.title}（副本）` }, review: emptyReview(), versions: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); }}><Copy size={18} /></button><button className="icon-button danger" title="删除任务" aria-label="删除任务" onClick={() => setConfirm({ title: '删除任务', message: `删除“${task.title}”及其本地版本记录。请先下载备份；其他任务不受影响。`, action: () => { setWorkspace(w => ({ ...w, projects: w.projects.filter(x => x.id !== p.id) })); setSelected(''); } })}><Trash2 size={18} /></button><button className="button primary" onClick={() => go('export')}><Package size={17} />交付评测包</button></div></div>
+        <div className="task-header"><div><div className="title-meta"><span className="badge draft">编辑草稿</span><span>{task.difficulty}</span><span>{task.engine}</span></div><h1>{task.title || '未命名任务'}</h1><p>{task.brief}</p></div><div className="header-actions"><button className="icon-button" title="复制任务" aria-label="复制任务" onClick={() => { const id = uid(); addProject({ ...structuredClone(p), id, task: { ...structuredClone(task), id, title: `${task.title}（副本）` }, review: emptyReview(), versions: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); }}><Copy size={18} /></button><button className="icon-button danger" title="删除任务" aria-label="删除任务" onClick={() => setConfirm({ title: '删除任务', message: `删除“${task.title}”及其版本记录。请先下载备份；其他任务不受影响。`, action: () => { setWorkspace(w => ({ ...w, projects: w.projects.filter(x => x.id !== p.id) })); setSelected(''); } })}><Trash2 size={18} /></button><button className="button primary" onClick={() => go('export')}><Package size={17} />交付评测包</button></div></div>
         <nav className="tabs" aria-label="评测制作流程">{tabs.map(item => <button className={tab === item.id ? 'active' : ''} key={item.id} aria-current={tab === item.id ? 'page' : undefined} onClick={() => setTab(item.id)}><item.icon size={17} /><span>{item.label}</span>{item.id === 'requirements' || item.id === 'rules' ? <span className="tab-count">{task[item.id].length}</span> : null}</button>)}</nav>
         <main id="main-content" tabIndex={-1} className="content-grid">
           <div className="page-content" key={p.id}>
@@ -188,12 +238,12 @@ export default function App() {
           <Quality task={task} issues={issues} go={go} />
         </main>
       </> : <main id="main-content" tabIndex={-1} className="empty-workspace"><div className="empty-symbol"><Layers3 size={42} /></div><h1>从一道好题开始</h1><p>将游戏开发需求变成可观察、可复现、可评判的任务。</p><button className="button primary" onClick={() => setShowNew(true)}><Plus size={18} />创建评测任务</button></main>}
-      <footer className="workspace-footer"><span>需求可观察 · 标准可解释 · 结果可复现</span><span>数据仅保存在当前浏览器</span></footer>
+      <footer className="workspace-footer"><span>需求可观察 · 标准可解释 · 结果可复现</span><span>{remote ? '题库保存在服务器 · 按账户隔离' : '数据仅保存在当前浏览器'}</span></footer>
     </div>
     {notice && <div className="toast" role="status"><CheckCircle2 size={18} /><span>{notice}</span><button aria-label="关闭提示" onClick={() => setNotice('')}><X size={16} /></button></div>}
-    {showNew && <NewTask onClose={() => setShowNew(false)} onCreate={addProject} />}
+    {showNew && <NewTask onClose={() => setShowNew(false)} onCreate={addProject} preferences={remote?.preferences} />}
     {confirm && <Modal title={confirm.title} onClose={() => setConfirm(null)}><p>{confirm.message}</p><div className="modal-actions"><button className="button secondary" onClick={() => setConfirm(null)}>取消</button><button className="button primary" onClick={() => { confirm.action(); setConfirm(null); }}>确认</button></div></Modal>}
-    {showHelp && <Modal title="操作与评测说明" onClose={() => setShowHelp(false)} wide><div className="help-content"><p>这是一款评测内容生产工具。它不会运行 coding agent、启动游戏或自动采集性能证据。</p><ol><li><strong>任务设定：</strong>从六类模板起草，替换仓库基线、引擎版本、入口与设备。</li><li><strong>需求列表：</strong>逐条写清开发内容、观察步骤和验收条件，避免“好看”“流畅”等模糊词。</li><li><strong>评测规则：</strong>关联需求，设置权重、方法、证据、0–4 分锚点。总权重必须为 100。</li><li><strong>专家试评：</strong>填写匿名提交标识和专家，逐条打分并记录证据。未评、缺证据或题目检查失败时结论待完成。硬门槛至少 3 分。</li><li><strong>版本与导出：</strong>修复质量问题，由专家确认后冻结快照。仅将 ZIP 的 agent/ 交给被测模型，expert/ 单独保管。</li></ol><div className="callout"><LockKeyhole size={20} /><p>数据保存在当前浏览器、当前网址。清理浏览器数据前先下载工作区备份；更换浏览器或端口需导入备份。证据字段保存引用文本，不上传附件。</p></div><p>起草使用确定性模板，没有连接生成模型。自定义任务需专家修改模板条目。冻结只发生在本地，不会发布到外部平台。</p><a href="https://github.com/waynchi/gamedevbench" target="_blank" rel="noreferrer">调研参考：GameDevBench <ExternalLink size={14} /></a></div></Modal>}
+    {showHelp && <Modal title="操作与评测说明" onClose={() => setShowHelp(false)} wide><div className="help-content"><p>这是一款评测内容生产工具。它不会运行 coding agent、启动游戏或自动采集性能证据。</p><ol><li><strong>任务设定：</strong>从六类模板起草，替换仓库基线、引擎版本、入口与设备。</li><li><strong>需求列表：</strong>逐条写清开发内容、观察步骤和验收条件，避免“好看”“流畅”等模糊词。</li><li><strong>评测规则：</strong>关联需求，设置权重、方法、证据、0–4 分锚点。总权重必须为 100。</li><li><strong>专家试评：</strong>填写匿名提交标识和专家，逐条打分并记录证据。未评、缺证据或题目检查失败时结论待完成。硬门槛至少 3 分。</li><li><strong>版本与导出：</strong>修复质量问题，由专家确认后冻结快照。仅将 ZIP 的 agent/ 交给被测模型，expert/ 单独保管。</li></ol><div className="callout"><LockKeyhole size={20} /><p>{remote ? '账户题库保存在服务器。登录失效、断网或保存冲突时，先下载当前改动备份。离开前等待保存完成。' : '数据保存在当前浏览器、当前网址。清理浏览器数据前先下载工作区备份；更换浏览器或端口需导入备份。'}证据字段保存引用文本，不上传附件。</p></div><p>起草使用确定性模板，没有连接生成模型。自定义任务需专家修改模板条目。冻结生成题库快照，不会向被测模型发布。</p><a href="https://github.com/waynchi/gamedevbench" target="_blank" rel="noreferrer">调研参考：GameDevBench <ExternalLink size={14} /></a></div></Modal>}
   </div>;
 }
 
