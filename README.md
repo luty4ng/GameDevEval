@@ -2,6 +2,12 @@
 
 Unity 图形与引擎能力评测工程。项目使用同一份 GPU Driven Terrain 任务提示词，分别交给 `Luna`、`Terra`、`Sol` 三个模型变体实现，用于比较它们在 GPU 地形、LOD、运行时验证和工程交付方面的差异。
 
+## 评测内容生产工具
+
+[GameEval Studio](Tools/game-eval-studio/README.md) 是本地运行的中文 WebApp，用于编写游戏开发 coding agent 的需求列表与专家评测规则。支持六类任务模板、需求覆盖与权重检查、带证据试评、版本冻结和公开任务/私有规则分离导出。启动方式、操作流程、数据备份和验证详情见 [App README](Tools/game-eval-studio/README.md)。
+
+![GameEval Studio 需求与专家规则工作台](Tools/game-eval-studio/docs/screenshots/desktop.png)
+
 ## 项目环境
 
 - Unity：`6000.5.5f1`
@@ -112,6 +118,7 @@ GameDevEval/
 │     ├─ Sol.unity
 │     ├─ Runtime/ / Resources/
 │     └─ Report/
+├─ Tools/game-eval-studio/        # 需求与专家规则生产 WebApp
 ├─ Docs/                         # 统一提示词、评分标准、对比报告
 ├─ Packages/                     # Unity 包配置
 └─ ProjectSettings/              # Unity 项目设置
