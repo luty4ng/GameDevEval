@@ -45,6 +45,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='冻结当前标准', exact=True).click()
     expect(page.get_by_text('v1', exact=True)).to_be_visible()
     expect(page.get_by_text('已自动保存', exact=True)).to_be_visible()
+    page.screenshot(path=str(results / 'deployed-desktop.png'), full_page=True)
     with page.expect_download() as pending:
         page.get_by_role('button', name='下载完整 ZIP', exact=True).click()
     output = results / 'deployed-package.zip'
@@ -58,6 +59,8 @@ with sync_playwright() as p:
     for width in (375, 768, 1024, 1440):
         page.set_viewport_size({'width': width, 'height': 1000})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+        if width == 375:
+            page.screenshot(path=str(results / 'deployed-mobile.png'), full_page=True)
     page.once('dialog', lambda dialog: dialog.accept())
     page.get_by_role('button', name='退出', exact=True).click()
     expect(page.get_by_role('heading', name='登录评测工作台')).to_be_visible()

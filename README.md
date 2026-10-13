@@ -4,7 +4,7 @@ Unity 图形与引擎能力评测工程。项目使用同一份 GPU Driven Terra
 
 ## 评测内容生产工具
 
-[GameEval Studio](Tools/game-eval-studio/README.md) 是中文 WebApp，用于编写游戏开发 coding agent 的需求列表与专家评测规则。支持六类任务模板、需求覆盖与权重检查、带证据试评、版本冻结和公开任务/私有规则分离导出。另有管理员邀请注册、登录、个人配置和 PostgreSQL 账户版，可用 Docker Compose 接入个人服务器现有 Traefik（尚未部署）。启动方式、操作流程、数据备份和验证详情见 [App README](Tools/game-eval-studio/README.md)。
+[GameEval Studio](Tools/game-eval-studio/README.md) 是中文 WebApp，用于编写游戏开发 coding agent 的需求列表与专家评测规则。支持六类任务模板、需求覆盖与权重检查、带证据试评、版本冻结和公开任务/私有规则分离导出。账户版使用 Fastify + Better Auth + PostgreSQL，支持管理员邀请注册、登录、个人与评测默认配置；已用独立容器部署到 luty-server，通过 SSH 访问验收，公网 HTTPS 待配置域名。业务、HTTP、认证与存储分层，方便后续替换技术栈。启动、操作、架构及部署验收详情见 [App README](Tools/game-eval-studio/README.md)。
 
 ![GameEval Studio 需求与专家规则工作台](Tools/game-eval-studio/docs/screenshots/desktop.png)
 

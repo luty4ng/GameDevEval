@@ -1,6 +1,7 @@
 node_modules/
 dist/
 test-results/
+__pycache__/
 *.local
 .env
 .env.*

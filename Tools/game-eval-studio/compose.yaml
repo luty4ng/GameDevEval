@@ -33,9 +33,10 @@ services:
       PORT: 3000
     depends_on:
       db: { condition: service_healthy }
-    # Loopback is for diagnostics only; the public entrypoint is Traefik HTTPS.
+    # Loopback supports SSH access/diagnostics; public access uses Traefik HTTPS.
     ports: [127.0.0.1:3000:3000]
-    networks: [backend]
+    # Docker suppresses published ports on an internal-only network.
+    networks: [backend, entry]
     labels: { traefik.enable: 'false' }
     restart: unless-stopped
     mem_limit: 512m
@@ -47,3 +48,4 @@ volumes:
   postgres-data:
 networks:
   backend: { internal: true }
+  entry: {}

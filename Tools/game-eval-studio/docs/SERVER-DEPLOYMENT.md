@@ -1,6 +1,6 @@
 # 账户版设计与容器部署指南
 
-版本：1.2 · 2026-10-13。代码与本地 PostgreSQL/浏览器验证已完成；**部署进行中，服务器验收记录见 DEPLOYMENT-REPORT.md；公网 HTTPS 需确认域名后启用**。
+版本：1.2 · 2026-10-13。**已部署到 luty-server，通过 SSH 模式的真实容器/浏览器、重启持久化与备份恢复验收；公网 HTTPS 需确认域名后启用**。完整结果见 [部署记录](DEPLOYMENT-REPORT.md)。
 
 ## 技术选择
 
@@ -59,7 +59,7 @@ flowchart LR
 
 ## luty-server 部署步骤
 
-以下为目标服务器上的 Linux 命令说明，**未在服务器执行**。正式执行前确认域名、DNS、现有 Traefik 的 HTTPS entrypoint 和 certificate resolver 名称，以及 loopback 3000 是否空闲。`traefik-net` 网络已经存在；不重启或改写现有 Traefik。
+以下为公网 HTTPS 部署命令说明。当前实际部署方式与执行证据见 [部署记录](DEPLOYMENT-REPORT.md)。公网模式执行前确认域名、DNS、现有 Traefik 的 HTTPS entrypoint 和 certificate resolver 名称，以及 loopback 3000 是否空闲。`traefik-net` 网络已经存在；不重启或改写现有 Traefik。
 
 1. 在专用目录检出仓库，进入 `Tools/game-eval-studio`，从 `.env.example` 创建 `.env`。设置 `APP_URL=https://实际域名`，`APP_HOST=实际域名`，填写已配置的 Traefik resolver。
 2. 为 `DB_ADMIN_PASSWORD`、`DB_PASSWORD`、`AUTH_SECRET` 分别生成独立随机值。DB_PASSWORD 使用十六进制，避免拼接 URI 的特殊字符问题；`.env` 仅允许运维用户读取。生产 API 自 Compose 得到 `NODE_ENV=production`，不会使用示例中的 development。
@@ -77,7 +77,7 @@ docker compose -f compose.yaml -f compose.traefik.yaml up -d app
 DB 首次初始化创建普通角色 `gameeval`，它拥有本应用库和表，不能创建其他库/角色，没有 superuser 权限。API 不使用 `postgres` 管理员连接。初始化脚本只在空卷首次启动执行；已有卷修改 `.env` 的 DB_PASSWORD 不会自动改变数据库密码。
 
 4. 打开 HTTPS 地址验收邀请注册、登录、跨设备保存、配置、停用和退出；检查会话 Cookie 的 Secure/HttpOnly，访问 `/health` 应返回 `{"status":"ok"}`。数据库没有发布宿主机 5432，App 容器以非 root 用户运行、只读根文件系统，不挂 Docker socket。
-5. 容器重启后再次确认题库与配置存在。**这些线上验收尚未完成，不能把本地测试等同于已上线。**
+5. 容器重启后再次确认题库与配置存在。验收应针对真实服务器容器执行，不能用本地测试代替；当前结果见部署记录。
 
 如果使用已有 PostgreSQL 实例：为其建立专用库、普通拥有者角色和网络访问，调整 `DATABASE_URL`，移除本 Compose 的 `db` 依赖后再校验。不能直接替换成其他应用的库和账号。
 
@@ -110,18 +110,18 @@ python3 scripts/account-input.py reset-password | docker compose run --rm -T app
 
 ## 已执行验证与待验收
 
-实际验证：43 项自动测试、9 项账户浏览器流程、18 项原本地版浏览器流程通过；两个构建模式及类型检查通过，npm audit 为 0。Compose 文件通过 YAML 解析，初始化脚本通过 `bash -n`。
+实际本地验证：47 项自动测试、9 项账户浏览器流程、18 项原本地版生产预览浏览器流程通过；两个构建模式及类型检查通过，npm audit 为 0。Compose 文件通过 YAML 解析，初始化脚本通过 `bash -n`。真实服务器与本地验证分开记载，见 [部署记录](DEPLOYMENT-REPORT.md)。
 
 执行本地 `npm test` 可在 loopback 启动真实 PostgreSQL 16.14 临时实例（embedded-postgres），使用随机专用目录并在结束时清理，不连接个人服务器数据库。覆盖认证、邀请、权限、账户数据隔离、JSONB、revision 冲突、冻结保护、修改密码、撤销会话及停用/启用。
 
 账户浏览器测试：先 `npm run build:server`，一个终端运行 `node --import tsx tests/browser-server.ts`，另一个终端 `python tests/accounts_e2e.py`。前者创建独立临时 PostgreSQL 和假账户，结束时 Ctrl+C 停止；勿用于生产。依赖见 `tests/requirements.txt`。
 
-部署时还需完成 Docker build、Compose health、TLS/Cookie、备份恢复与服务器重启持久化验收。当前没有验证生产负载或长时间断电耐久性。
+部署时需验证 Docker build、Compose health、账户与 Cookie、备份恢复和容器重启持久化；公网模式还需验证 TLS。当前没有验证生产负载、服务器整机重启或长时间断电耐久性。
 
 ## 无域名时的 SSH 部署模式
 
-可设置 `ACCESS_MODE=ssh`、`APP_URL=http://127.0.0.1:3000`，只使用 `compose.yaml`，不加载 Traefik 覆盖文件。容器仍使用生产运行环境、普通数据库角色和私有网络；宿主机只绑定 127.0.0.1:3000。应用仅允许 loopback origin，Cookie 保留 HttpOnly/SameSite，SSH 连接承担网络加密，不能把此模式用于公网 HTTP。
+可设置 `ACCESS_MODE=ssh`、`APP_URL=http://127.0.0.1:3000`，只使用 `compose.yaml`，不加载 Traefik 覆盖文件。容器仍使用生产运行环境、普通数据库角色和私有 backend 网络；App 另接 entry 网络，以启用 Docker 的端口发布，宿主机只绑定 127.0.0.1:3000。应用仅允许 loopback origin，Cookie 保留 HttpOnly/SameSite，SSH 连接承担网络加密，不能把此模式用于公网 HTTP。
 
-本机执行 `ssh -N -L 3000:127.0.0.1:3000 luty-server`，再打开 `http://127.0.0.1:3000`。客户端端口必须为 3000，与 APP_URL 一致。确定域名后，切换 `ACCESS_MODE=public`、HTTPS APP_URL/APP_HOST，并加载 Traefik 覆盖文件重建本应用容器；保持 DB_PASSWORD、AUTH_SECRET 和持久卷，重新登录新 origin。
+本机执行 `ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 3000:127.0.0.1:3000 luty-server`，再打开 `http://127.0.0.1:3000`。客户端端口必须为 3000，与 APP_URL 一致。确定域名后，切换 `ACCESS_MODE=public`、HTTPS APP_URL/APP_HOST，并加载 Traefik 覆盖文件重建本应用容器；保持 DB_PASSWORD、AUTH_SECRET 和持久卷，重新登录新 origin。
 
 依赖分层、调用链和技术替换步骤见 [架构文档](ARCHITECTURE.md)，稳定协议见 [OpenAPI](API.openapi.json)。生成协议命令为 `npm run schema:api`。

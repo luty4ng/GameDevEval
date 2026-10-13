@@ -12,7 +12,19 @@
 账户版的完整启动与容器部署见 [部署指南](SERVER-DEPLOYMENT.md)。以下题目生产流程同时适用于两版，“浏览器本地存储”说明仅适用于无需账户的本地版。
 
 
-日期：2026-10-13 · 版本：1.0
+日期：2026-10-13 · 版本：1.2
+
+## 服务器账户版入口
+
+当前入口与部署结果以 [服务器验收记录](DEPLOYMENT-REPORT.md) 为准。没有域名时，在自己的电脑运行以下命令，并保持此终端连接：
+
+```powershell
+ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -L 3000:127.0.0.1:3000 luty-server
+```
+
+打开 `http://127.0.0.1:3000/`，使用管理员账户登录。初始登录资料位于服务器 `/home/ubuntu/gameeval/shared/initial-admin.json`，只允许服务器运维用户读取；请自行通过 SSH 查看并在首次登录后修改密码，不要上传仓库或发到聊天中。默认邮箱 `admin@gameeval.local` 是登录标识，不代表可收信邮箱，平台也不发送邮件。
+
+邀请注册同样需要能访问当前入口。SSH 阶段受邀者需要自己的服务器 SSH 权限；面向没有 SSH 权限的专家开放前，先按 [部署指南](SERVER-DEPLOYMENT.md#无域名时的-ssh-部署模式) 配置域名和公网 HTTPS。
 
 ## 1. 启动与首次使用
 

@@ -4,19 +4,21 @@
 
 ## 1.2 解耦与部署补充
 
-业务策略移入 application，HTTP、SQL/事务和认证库分别放入 transport/infrastructure。前后端领域实现集中到 shared，协议独立输出为 OpenAPI。两个不依赖 Fastify/pg/Better Auth 的内存适配器业务测试验证替换边界；真实 PostgreSQL 和浏览器测试继续约束兼容性。详见 [架构说明](ARCHITECTURE.md)。服务器部署以独立容器、普通 DB 角色和持久卷实现，验收证据随部署记录更新。
+业务策略移入 application，HTTP、SQL/事务和认证库分别放入 transport/infrastructure。前后端领域实现集中到 shared，协议独立输出为 OpenAPI。两个不依赖 Fastify/pg/Better Auth 的内存适配器业务测试验证替换边界；真实 PostgreSQL 和浏览器测试继续约束兼容性。详见 [架构说明](ARCHITECTURE.md)。服务器部署采用独立容器、普通 DB 角色和持久卷，实际执行结果见 [部署验收记录](DEPLOYMENT-REPORT.md)。
+
+v1.2 已通过 47 项自动测试、9 项账户版 Chromium 流程与 18 项本地版生产预览流程；两个构建模式和严格类型检查通过。增加 SSH loopback 生产模式，以无域名时的加密隧道访问；公网模式仍强制 HTTPS/Secure Cookie。API 文档明确应用请求/响应结构与认证库响应的替换边界。
 
 ## 1.1 账户版实施补充
 
 已增加 Fastify API、Better Auth 邮箱密码认证、邀请注册、个人资料/评测默认配置、管理员邀请/停用与 PostgreSQL 持久化。React 工作流复用原有领域逻辑，账户版不把题库写入浏览器 localStorage；API 以会话身份过滤工作区，JSONB 保留 v1 交换协议，revision 事务检查防止多设备覆盖，服务端阻止修改已有冻结快照。默认配置仅填充新任务；旧浏览器题库由专家明确导入。
 
-新增 Compose/Dockerfile、普通数据库角色、Traefik 覆盖配置、首个管理员初始化与线下改密工具。完整技术选择、数据流与运维说明见 [账户版设计与部署指南](SERVER-DEPLOYMENT.md)。代码已完成本地 PostgreSQL 和浏览器验证；本轮没有修改服务器服务，Docker 镜像和线上 HTTPS 尚未验证。
+新增 Compose/Dockerfile、普通数据库角色、Traefik 覆盖配置、首个管理员初始化与线下改密工具。完整技术选择、数据流与运维说明见 [账户版设计与部署指南](SERVER-DEPLOYMENT.md)。v1.1 交付时完成了本地 PostgreSQL 和浏览器验证，尚未部署服务器；当前部署状态以 v1.2 验收记录为准。
 
 下文记录 v1 内容生产设计；存储与身份限制应按上述账户版补充理解。
 
 ## 1. 交付结论
 
-已在 `Tools/game-eval-studio` 实现可本地运行的中文 WebApp，完成题目起草、需求编制、规则设计、质量检查、专家试评、冻结版本与交付导出的完整内容生产流程。调研与产品要求先写入 [PRD](PRD.md)，实现后的使用流程见 [操作指南](USER-GUIDE.md)。未改动 Unity 资产与工程配置；代码纳入本仓库，未部署外网。
+已在 `Tools/game-eval-studio` 实现中文 WebApp，完成题目起草、需求编制、规则设计、质量检查、专家试评、冻结版本与交付导出的完整内容生产流程。调研与产品要求先写入 [PRD](PRD.md)，实现后的使用流程见 [操作指南](USER-GUIDE.md)。支持本地版及 PostgreSQL 账户版；服务器入口和验收状态见部署记录。未改动 Unity 资产与工程配置。
 
 首版是单机内容工作台，使用确定性模板起草。它不运行 coding agent、引擎测试或性能采样，不调用生成模型，试评证据由专家从外部执行结果录入。
 
@@ -48,9 +50,9 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/model.ts` | 类型、Zod 备份协议、需求与规则 ID |
+| `shared/model.ts` | 类型、Zod 备份协议、需求与规则 ID |
 | `src/templates.ts` | 六类模板和完整示例 |
-| `src/domain.ts` | 质量校验、评分、编辑失效、快照、差异、导入校验 |
+| `shared/domain.ts` | 质量校验、评分、编辑失效、快照、差异、导入校验 |
 | `src/export.ts` | agent/专家文件分离、CSV、ZIP、SHA-256、下载 |
 | `src/storage.ts` | 带版本的 localStorage 读取与损坏保护 |
 | `src/App.tsx` | 题库、工作流、表单、自动保存、恢复与确认交互 |

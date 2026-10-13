@@ -9,7 +9,7 @@ import urllib.error
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--directory', required=True)
-parser.add_argument('--phase', choices=('setup', 'checkpoint', 'persisted'), required=True)
+parser.add_argument('--phase', choices=('setup', 'checkpoint', 'persisted', 'cleanup', 'inspect'), required=True)
 args = parser.parse_args()
 directory = Path(args.directory)
 probe = json.loads((directory / 'probe-input.json').read_text())
@@ -29,6 +29,7 @@ def client():
                 return response.status, json.load(response)
         except urllib.error.HTTPError as error:
             return error.code, json.load(error)
+    call.cookies = jar
     return call
 
 member = client()
@@ -50,6 +51,22 @@ if args.phase == 'setup':
     assert member('/api/preferences', {'name': probe['name'], 'preferences': preferences}, 'PUT')[0] == 200
     assert admin('/api/workspace')[1]['data']['projects'] == []
     print('PASS live registration, login, invitation replay rejection, roles, Origin and preferences')
+elif args.phase in ('cleanup', 'inspect'):
+    admin = client()
+    credentials = json.loads((directory / 'initial-admin.json').read_text())
+    assert admin('/api/auth/sign-in/email', {'email': credentials['email'], 'password': credentials['password']})[0] == 200
+    cookies = [cookie for cookie in admin.cookies if cookie.name.endswith('session_token')]
+    assert cookies and all(cookie.has_nonstandard_attr('HttpOnly') and cookie.get_nonstandard_attr('SameSite', '').lower() == 'lax' and not cookie.secure for cookie in cookies)
+    print('PASS SSH-mode session Cookie is HttpOnly/SameSite=Lax and valid on loopback HTTP')
+    if args.phase == 'inspect':
+        raise SystemExit(0)
+    status, users = admin('/api/admin/users')
+    assert status == 200
+    matches = [user for user in users if user['email'] == probe['email'] and user['role'] == 'member']
+    assert len(matches) == 1
+    assert admin('/api/admin/users/' + matches[0]['id'], {'disabled': True}, 'PUT')[0] == 200
+    assert member('/api/auth/sign-in/email', {'email': probe['email'], 'password': probe['password']})[0] == 403
+    print('PASS disposable probe disabled; sessions revoked; disabled login rejected')
 else:
     assert member('/api/auth/sign-in/email', {'email': probe['email'], 'password': probe['password']})[0] == 200
     if args.phase == 'checkpoint':

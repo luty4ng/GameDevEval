@@ -10,6 +10,8 @@
 
 推荐 **Fastify + Better Auth + PostgreSQL 16**，App/DB 两个容器接服务器现有 Traefik；数据库不发布公网端口。数据库选择、架构、开发启动、Compose、管理员初始化、备份恢复和验收边界见 [账户版设计与部署指南](docs/SERVER-DEPLOYMENT.md)。
 
+当前服务器访问方式和实际验收结果见 [部署记录](docs/DEPLOYMENT-REPORT.md)。HTTP、业务服务、数据库及身份认证通过接口分离，后续换技术栈的范围见 [架构说明](docs/ARCHITECTURE.md)。
+
 ![账户与评测默认配置](docs/screenshots/accounts.png)
 
 ## 无需账户的本地版快速启动
@@ -106,7 +108,7 @@ README.md                  包使用说明
 | 浏览器拒绝读取存储 | 显示恢复失败说明，仍可备份内存题库；检查浏览器存储设置。 |
 | 导入失败 | 检查是否为本工具的工作区 JSON，是否超过 10 MB，不能用单条 rubric 或 ZIP 回导。 |
 
-容量上限：100 个任务；每任务 200 条需求、300 条规则、100 个版本；备份导入最大 10 MB。浏览器实际配额可能更小，以保存状态为准。首版没有多人账号、服务端数据库或云端备份。
+容量上限：100 个任务；每任务 200 条需求、300 条规则、100 个版本；备份导入最大 10 MB。浏览器实际配额可能更小，以保存状态为准。本节描述无需账户的本地版；账户版由服务端按用户保存题库。
 
 ## 可用性验证
 
@@ -139,7 +141,7 @@ python tests/e2e.py --url http://127.0.0.1:5173/
 
 ## 技术与文档
 
-React + TypeScript + Vite，Zod 校验数据，Lucide 提供图标，JSZip 按需加载用于导出。领域逻辑集中在 `src/domain.ts`，交换协议在 `src/model.ts`，模板在 `src/templates.ts`，导出在 `src/export.ts`。
+React + TypeScript + Vite，Zod 校验数据，Lucide 提供图标，JSZip 按需加载用于导出。领域逻辑集中在 `shared/domain.ts`，交换协议在 `shared/model.ts` 和 `shared/contracts.ts`，模板在 `src/templates.ts`，导出在 `src/export.ts`。账户后端为 Node.js/Fastify；业务服务、数据库和认证适配器分别位于 `server/application`、`server/infrastructure`。
 
 - [PRD 与开源评测平台调研](docs/PRD.md)
 - [设计与实施报告](docs/DESIGN-REPORT.md)
@@ -151,4 +153,4 @@ React + TypeScript + Vite，Zod 校验数据，Lucide 提供图标，JSZip 按�
 
 ### 账户版验证
 
-`npm test` **43 项通过**（30 项领域、12 项 PostgreSQL/账户集成、1 项服务配置），账户版 **9 项真实浏览器流程通过**；`npm run build:server` 构建账户版。真实浏览器流程见 `tests/accounts_e2e.py`，执行方法与环境限制见 [部署指南](docs/SERVER-DEPLOYMENT.md#已执行验证与待验收)。容器与线上 HTTPS 尚待部署验收。
+v1.2 的 `npm test` **47 项通过**（30 项领域、13 项 PostgreSQL/账户集成、2 项配置约束、2 项独立应用服务）；账户版 **9 项真实浏览器流程通过**，本地版 **18 项生产预览浏览器流程通过**。`npm run build:server` 构建账户版。执行方法与环境限制见 [部署指南](docs/SERVER-DEPLOYMENT.md#已执行验证与待验收)，真实服务器验证与公网入口状态见 [部署记录](docs/DEPLOYMENT-REPORT.md)。
